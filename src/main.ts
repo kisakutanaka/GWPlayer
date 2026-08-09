@@ -24,12 +24,12 @@ app.innerHTML = `
     </p>
     <div class="orbit-wrap">
       <canvas id="hero-orbit-canvas"></canvas>
+      <p id="hero-rotation-rate" class="rotation-rate-overlay">回転数: - 回/秒</p>
     </div>
     <div class="rotation-graph-wrap">
       <canvas id="hero-rotation-curve-canvas"></canvas>
       <canvas id="hero-rotation-playhead-canvas"></canvas>
     </div>
-    <p id="hero-rotation-rate" class="rotation-rate">回転数: - 回/秒</p>
     <div class="waveform-wrap" id="hero-waveform-wrap">
       <canvas id="hero-waveform-canvas"></canvas>
       <canvas id="hero-playhead-canvas"></canvas>

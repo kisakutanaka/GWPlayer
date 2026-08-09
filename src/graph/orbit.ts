@@ -46,7 +46,12 @@ export function renderOrbit(
 
   const cx = width / 2
   const cy = height / 2
-  const maxPixelRadius = (Math.min(width, height) / 2) * 0.85
+  // 縦方向はTILT_Yで圧縮されるため、横幅基準と「圧縮後に縦へ収まる」
+  // 基準の両方を満たす最大半径を使う。横長のコンテナでも余白を無駄にしない。
+  const maxPixelRadius = Math.min(
+    (width / 2) * 0.9,
+    (height / 2 / TILT_Y) * 0.9,
+  )
   const M = model.m1 + model.m2
   const avgMass = M / 2
   const scale = model.maxRadius > 0 ? maxPixelRadius / model.maxRadius : 0
