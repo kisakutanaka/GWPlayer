@@ -45,3 +45,15 @@ export function fft(re: Float64Array, im: Float64Array): void {
     }
   }
 }
+
+// 逆FFT。複素共役を取ってからfftし、再度共役を取って1/nする、という
+// 標準的なトリックでfftを再利用する。
+export function ifft(re: Float64Array, im: Float64Array): void {
+  const n = re.length
+  for (let i = 0; i < n; i++) im[i] = -im[i]
+  fft(re, im)
+  for (let i = 0; i < n; i++) {
+    re[i] = re[i] / n
+    im[i] = -im[i] / n
+  }
+}

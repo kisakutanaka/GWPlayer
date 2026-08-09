@@ -1,23 +1,26 @@
 import './style.css'
 import { loadGw150914 } from './data/gw150914'
-import { StrainPlayer } from './audio/strain-player'
-import { renderWaveform, renderPlayhead } from './graph/waveform'
 import { computePsdWelch } from './dsp/psd'
+import { whiten } from './dsp/whiten'
 import { renderSpectrum } from './graph/spectrum'
+import { setupPlayerSection } from './ui/player-section'
+import type { PlayerSectionElements } from './ui/player-section'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
   <h1>重力波プレイヤー</h1>
   <p id="status">GW150914のデータを読み込み中...</p>
-  <div class="waveform-wrap" id="waveform-wrap" hidden>
-    <canvas id="waveform-canvas"></canvas>
-    <canvas id="playhead-canvas"></canvas>
+
+  <div class="waveform-wrap" id="raw-waveform-wrap" hidden>
+    <canvas id="raw-waveform-canvas"></canvas>
+    <canvas id="raw-playhead-canvas"></canvas>
   </div>
-  <div id="player" class="player" hidden>
-    <button id="play-pause" type="button">再生</button>
-    <input id="seek" type="range" min="0" max="1" step="0.001" value="0" />
-    <span id="time">0.0 / 0.0 秒</span>
+  <div id="raw-player" class="player" hidden>
+    <button id="raw-play-pause" type="button">再生</button>
+    <input id="raw-seek" type="range" min="0" max="1" step="0.001" value="0" />
+    <span id="raw-time">0.0 / 0.0 秒</span>
   </div>
+
   <div id="spectrum-section" hidden>
     <h2>周波数成分（PSD）</h2>
     <p class="explain">
@@ -31,25 +34,54 @@ app.innerHTML = `
       <canvas id="spectrum-canvas"></canvas>
     </div>
   </div>
+
+  <div id="whiten-section" hidden>
+    <h2>ホワイトニング後の音声</h2>
+    <p class="explain">
+      ホワイトニングは、上のPSDグラフで見えていた「山」を打ち消すように
+      各周波数の強さを均一にする処理です。検出器特有のノイズが減り、
+      重力波信号がより聞き取りやすく・見やすくなります。
+    </p>
+    <div class="waveform-wrap" id="whiten-waveform-wrap">
+      <canvas id="whiten-waveform-canvas"></canvas>
+      <canvas id="whiten-playhead-canvas"></canvas>
+    </div>
+    <div id="whiten-player" class="player">
+      <button id="whiten-play-pause" type="button">再生</button>
+      <input id="whiten-seek" type="range" min="0" max="1" step="0.001" value="0" />
+      <span id="whiten-time">0.0 / 0.0 秒</span>
+    </div>
+  </div>
 `
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!
-const waveformWrap = document.querySelector<HTMLDivElement>('#waveform-wrap')!
-const waveformCanvas =
-  document.querySelector<HTMLCanvasElement>('#waveform-canvas')!
-const playheadCanvas =
-  document.querySelector<HTMLCanvasElement>('#playhead-canvas')!
-const playerEl = document.querySelector<HTMLDivElement>('#player')!
-const playPauseButton = document.querySelector<HTMLButtonElement>('#play-pause')!
-const seekInput = document.querySelector<HTMLInputElement>('#seek')!
-const timeLabel = document.querySelector<HTMLSpanElement>('#time')!
+
+function getPlayerSectionElements(prefix: string): PlayerSectionElements {
+  return {
+    waveformCanvas: document.querySelector<HTMLCanvasElement>(
+      `#${prefix}-waveform-canvas`,
+    )!,
+    playheadCanvas: document.querySelector<HTMLCanvasElement>(
+      `#${prefix}-playhead-canvas`,
+    )!,
+    playPauseButton: document.querySelector<HTMLButtonElement>(
+      `#${prefix}-play-pause`,
+    )!,
+    seekInput: document.querySelector<HTMLInputElement>(`#${prefix}-seek`)!,
+    timeLabel: document.querySelector<HTMLSpanElement>(`#${prefix}-time`)!,
+  }
+}
+
+const rawWaveformWrap = document.querySelector<HTMLDivElement>('#raw-waveform-wrap')!
+const rawPlayerEl = document.querySelector<HTMLDivElement>('#raw-player')!
 const spectrumSection = document.querySelector<HTMLDivElement>('#spectrum-section')!
 const spectrumCanvas =
   document.querySelector<HTMLCanvasElement>('#spectrum-canvas')!
+const whitenSection = document.querySelector<HTMLDivElement>('#whiten-section')!
 
-const formatTime = (t: number) => t.toFixed(1)
-const PLAYHEAD_COLOR = '#e63946'
 const WAVEFORM_COLOR = '#3a5ba0'
+const WHITEN_WAVEFORM_COLOR = '#3a8a5b'
+const PLAYHEAD_COLOR = '#e63946'
 const SPECTRUM_COLOR = '#3a5ba0'
 const SPECTRUM_MIN_FREQ = 10 // Hz。これより低い帯域は地面振動などのノイズが支配的
 const SPECTRUM_MAX_FREQ = 2000 // Hz (Nyquist=2048未満の見やすい範囲)
@@ -59,14 +91,17 @@ loadGw150914()
     status.textContent = `${meta.event} (${meta.detector} / ${meta.sampleRate}Hz)`
 
     const ctx = new AudioContext()
-    const player = new StrainPlayer(ctx)
-    player.load(strain, meta.sampleRate)
 
-    seekInput.max = String(player.duration)
-    timeLabel.textContent = `0.0 / ${formatTime(player.duration)} 秒`
-    playerEl.hidden = false
-    waveformWrap.hidden = false
-    renderWaveform(waveformCanvas, strain, WAVEFORM_COLOR)
+    rawPlayerEl.hidden = false
+    rawWaveformWrap.hidden = false
+    setupPlayerSection(
+      ctx,
+      getPlayerSectionElements('raw'),
+      strain,
+      meta.sampleRate,
+      WAVEFORM_COLOR,
+      PLAYHEAD_COLOR,
+    )
 
     const { frequencies, psd } = computePsdWelch(strain, meta.sampleRate)
     spectrumSection.hidden = false
@@ -74,67 +109,23 @@ loadGw150914()
       minFreq: SPECTRUM_MIN_FREQ,
       maxFreq: SPECTRUM_MAX_FREQ,
     })
-
-    const drawPlayhead = () => {
-      const ratio = player.duration > 0 ? player.currentTime / player.duration : 0
-      renderPlayhead(playheadCanvas, ratio, PLAYHEAD_COLOR)
-    }
-    drawPlayhead()
-
-    let draggingSeek = false
-
-    const updateLoop = () => {
-      if (!draggingSeek) {
-        seekInput.value = String(player.currentTime)
-        timeLabel.textContent = `${formatTime(player.currentTime)} / ${formatTime(player.duration)} 秒`
-        drawPlayhead()
-      }
-      if (player.isPlaying) {
-        requestAnimationFrame(updateLoop)
-      }
-    }
-
-    player.onEnded = () => {
-      playPauseButton.textContent = '再生'
-      seekInput.value = String(player.duration)
-      timeLabel.textContent = `${formatTime(player.duration)} / ${formatTime(player.duration)} 秒`
-      drawPlayhead()
-    }
-
-    playPauseButton.addEventListener('click', () => {
-      void ctx.resume()
-      if (player.isPlaying) {
-        player.pause()
-        playPauseButton.textContent = '再生'
-      } else {
-        player.play()
-        playPauseButton.textContent = '一時停止'
-        requestAnimationFrame(updateLoop)
-      }
-    })
-
-    seekInput.addEventListener('pointerdown', () => {
-      draggingSeek = true
-    })
-    seekInput.addEventListener('input', () => {
-      timeLabel.textContent = `${formatTime(Number(seekInput.value))} / ${formatTime(player.duration)} 秒`
-      const ratio =
-        player.duration > 0 ? Number(seekInput.value) / player.duration : 0
-      renderPlayhead(playheadCanvas, ratio, PLAYHEAD_COLOR)
-    })
-    seekInput.addEventListener('change', () => {
-      player.seek(Number(seekInput.value))
-      draggingSeek = false
-    })
-
     window.addEventListener('resize', () => {
-      renderWaveform(waveformCanvas, strain, WAVEFORM_COLOR)
-      drawPlayhead()
       renderSpectrum(spectrumCanvas, frequencies, psd, SPECTRUM_COLOR, {
         minFreq: SPECTRUM_MIN_FREQ,
         maxFreq: SPECTRUM_MAX_FREQ,
       })
     })
+
+    const whitened = whiten(strain, meta.sampleRate)
+    whitenSection.hidden = false
+    setupPlayerSection(
+      ctx,
+      getPlayerSectionElements('whiten'),
+      whitened,
+      meta.sampleRate,
+      WHITEN_WAVEFORM_COLOR,
+      PLAYHEAD_COLOR,
+    )
   })
   .catch((err: unknown) => {
     status.textContent = 'データの読み込みに失敗しました。'
