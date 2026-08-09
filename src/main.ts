@@ -2,6 +2,8 @@ import './style.css'
 import { loadGw150914 } from './data/gw150914'
 import { StrainPlayer } from './audio/strain-player'
 import { renderWaveform, renderPlayhead } from './graph/waveform'
+import { computePsdWelch } from './dsp/psd'
+import { renderSpectrum } from './graph/spectrum'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -16,6 +18,19 @@ app.innerHTML = `
     <input id="seek" type="range" min="0" max="1" step="0.001" value="0" />
     <span id="time">0.0 / 0.0 秒</span>
   </div>
+  <div id="spectrum-section" hidden>
+    <h2>周波数成分（PSD）</h2>
+    <p class="explain">
+      PSD（パワースペクトル密度）は、信号にどの周波数がどれくらい強く
+      含まれているかを表すグラフです。山になっている部分は検出器自身の
+      ノイズが大きい周波数帯を示しています。次のステップの
+      「ホワイトニング」では、この山を平らにならすことでノイズの影響を
+      抑え、重力波の信号を見つけやすくします。
+    </p>
+    <div class="graph-wrap">
+      <canvas id="spectrum-canvas"></canvas>
+    </div>
+  </div>
 `
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!
@@ -28,10 +43,16 @@ const playerEl = document.querySelector<HTMLDivElement>('#player')!
 const playPauseButton = document.querySelector<HTMLButtonElement>('#play-pause')!
 const seekInput = document.querySelector<HTMLInputElement>('#seek')!
 const timeLabel = document.querySelector<HTMLSpanElement>('#time')!
+const spectrumSection = document.querySelector<HTMLDivElement>('#spectrum-section')!
+const spectrumCanvas =
+  document.querySelector<HTMLCanvasElement>('#spectrum-canvas')!
 
 const formatTime = (t: number) => t.toFixed(1)
 const PLAYHEAD_COLOR = '#e63946'
 const WAVEFORM_COLOR = '#3a5ba0'
+const SPECTRUM_COLOR = '#3a5ba0'
+const SPECTRUM_MIN_FREQ = 10 // Hz。これより低い帯域は地面振動などのノイズが支配的
+const SPECTRUM_MAX_FREQ = 1024 // Hz (Nyquist未満の見やすい範囲)
 
 loadGw150914()
   .then(({ meta, strain }) => {
@@ -46,6 +67,13 @@ loadGw150914()
     playerEl.hidden = false
     waveformWrap.hidden = false
     renderWaveform(waveformCanvas, strain, WAVEFORM_COLOR)
+
+    const { frequencies, psd } = computePsdWelch(strain, meta.sampleRate)
+    spectrumSection.hidden = false
+    renderSpectrum(spectrumCanvas, frequencies, psd, SPECTRUM_COLOR, {
+      minFreq: SPECTRUM_MIN_FREQ,
+      maxFreq: SPECTRUM_MAX_FREQ,
+    })
 
     const drawPlayhead = () => {
       const ratio = player.duration > 0 ? player.currentTime / player.duration : 0
@@ -102,6 +130,10 @@ loadGw150914()
     window.addEventListener('resize', () => {
       renderWaveform(waveformCanvas, strain, WAVEFORM_COLOR)
       drawPlayhead()
+      renderSpectrum(spectrumCanvas, frequencies, psd, SPECTRUM_COLOR, {
+        minFreq: SPECTRUM_MIN_FREQ,
+        maxFreq: SPECTRUM_MAX_FREQ,
+      })
     })
   })
   .catch((err: unknown) => {

@@ -45,9 +45,9 @@ Plan.mdの内容を、小さく検証可能なステップに分解し、順番�
 
 ## Phase 4: 周波数成分（FFT/PSD）
 
-- [ ] 4-1 FFTライブラリを選定する、または自前実装（Cooley-Tukey）する
-- [ ] 4-2 Welch法などでPSDを計算しグラフ表示する
-- [ ] 4-3 PSDとは何かを説明する教育目的のテキストを添える
+- [x] 4-1 FFTライブラリを選定する、または自前実装（Cooley-Tukey）する（`src/dsp/fft.ts`。既知の正弦波でピーク位置を検証済み）
+- [x] 4-2 Welch法などでPSDを計算しグラフ表示する（`src/dsp/psd.ts`, `src/graph/spectrum.ts`。ASD=√PSDをlog-logで描画。パーセバルの定理で正規化を検証済み）
+- [x] 4-3 PSDとは何かを説明する教育目的のテキストを添える
 
 ## Phase 5: ホワイトニング
 
