@@ -21,7 +21,7 @@ app.innerHTML = `
   <div class="event-picker">
     <label for="event-select">重力波イベント</label>
     <select id="event-select">
-      ${EVENT_CATALOG.map((e) => `<option value="${e.id}">${e.label}</option>`).join('')}
+      ${EVENT_CATALOG.map((e) => `<option value="${e.id}">${e.label} — ${e.hint}</option>`).join('')}
     </select>
     <p id="event-blurb" class="explain"></p>
   </div>
