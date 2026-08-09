@@ -6,6 +6,9 @@ import { bandpass } from './dsp/bandpass'
 import { renderSpectrum } from './graph/spectrum'
 import { setupPlayerSection } from './ui/player-section'
 import type { PlayerSectionElements } from './ui/player-section'
+import { createInspiralModel } from './physics/inspiral'
+import { setupAnimationSection } from './ui/animation-section'
+import type { AnimationSectionElements } from './ui/animation-section'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
@@ -81,6 +84,24 @@ app.innerHTML = `
       <canvas id="bandpass-spectrum-canvas"></canvas>
     </div>
   </div>
+
+  <div id="animation-section" hidden>
+    <h2>ブラックホール合体のアニメーション</h2>
+    <p class="explain">
+      GW150914は、太陽の約36倍と29倍の質量を持つ2つのブラックホールが
+      合体したときに発生した重力波です。バンドパス後の音声に合わせて、
+      実際の質量から計算した軌道の様子を表示しています（数値相対論による
+      厳密なシミュレーションではなく、教育目的の簡略化した模式図です）。
+    </p>
+    <div class="orbit-wrap">
+      <canvas id="orbit-canvas"></canvas>
+    </div>
+    <div id="orbit-player" class="player">
+      <button id="orbit-play-pause" type="button">再生</button>
+      <input id="orbit-seek" type="range" min="0" max="1" step="0.001" value="0" />
+      <span id="orbit-time">0.0 / 0.0 秒</span>
+    </div>
+  </div>
 `
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!
@@ -115,6 +136,8 @@ const bandpassSection =
 const bandpassSpectrumCanvas = document.querySelector<HTMLCanvasElement>(
   '#bandpass-spectrum-canvas',
 )!
+const animationSection =
+  document.querySelector<HTMLDivElement>('#animation-section')!
 
 const WAVEFORM_COLOR = '#3a5ba0'
 const WHITEN_WAVEFORM_COLOR = '#3a8a5b'
@@ -128,6 +151,23 @@ const SPECTRUM_MAX_FREQ = 2000 // Hz (Nyquist=2048未満の見やすい範囲)
 // GW150914の信号が主に含まれる帯域（GWOSCチュートリアル等で使われる代表的な値）
 const BANDPASS_LOW_FREQ = 35
 const BANDPASS_HIGH_FREQ = 350
+
+// GW150914の質量パラメータと合体時刻(Abbott et al. 2016で公表された値)
+const GW150914_M1_SOLAR_MASSES = 36
+const GW150914_M2_SOLAR_MASSES = 29
+const GW150914_MERGER_GPS = 1126259462.423
+const ORBIT_COLORS = { body1: '#3a5ba0', body2: '#a0653a', merged: '#6b3a8a' }
+
+function getAnimationSectionElements(): AnimationSectionElements {
+  return {
+    orbitCanvas: document.querySelector<HTMLCanvasElement>('#orbit-canvas')!,
+    playPauseButton: document.querySelector<HTMLButtonElement>(
+      '#orbit-play-pause',
+    )!,
+    seekInput: document.querySelector<HTMLInputElement>('#orbit-seek')!,
+    timeLabel: document.querySelector<HTMLSpanElement>('#orbit-time')!,
+  }
+}
 
 function drawAllSpectra(
   spectra: {
@@ -193,6 +233,23 @@ async function main() {
     PLAYHEAD_COLOR,
   )
   const bandpassSpectrum = computePsdWelch(bandpassed, meta.sampleRate)
+
+  const mergerTime = GW150914_MERGER_GPS - meta.gpsStart
+  const inspiralModel = createInspiralModel(
+    GW150914_M1_SOLAR_MASSES,
+    GW150914_M2_SOLAR_MASSES,
+    mergerTime,
+    meta.duration,
+  )
+  animationSection.hidden = false
+  setupAnimationSection(
+    ctx,
+    getAnimationSectionElements(),
+    bandpassed,
+    meta.sampleRate,
+    inspiralModel,
+    ORBIT_COLORS,
+  )
 
   const spectra = [
     { canvas: spectrumCanvas, ...rawSpectrum, color: SPECTRUM_COLOR },
