@@ -20,10 +20,10 @@ Plan.mdの内容を、小さく検証可能なステップに分解し、順番�
 
 ## Phase 0: 環境構築
 
-- [ ] 0-1 Vite + TypeScriptでプロジェクトを初期化する
-- [ ] 0-2 GitHub Pages向けのbase path設定と、mainブランチへのpushで自動デプロイするGitHub Actionsを構築し、Hello Worldが公開できることを確認する（以降、常に最新状態が実機で確認できるようにする）
-- [ ] 0-3 ESLint/Prettierなど最低限のコード品質ツールを導入する（過剰な設定はしない）
-- [ ] 0-4 iPhone実機でHello Worldにアクセスし、表示確認手順を確立する
+- [x] 0-1 Vite + TypeScriptでプロジェクトを初期化する
+- [x] 0-2 GitHub Pages向けのbase path設定と、mainブランチへのpushで自動デプロイするGitHub Actionsを構築し、Hello Worldが公開できることを確認する（以降、常に最新状態が実機で確認できるようにする）
+- [x] 0-3 ESLint/Prettierなど最低限のコード品質ツールを導入する（過剰な設定はしない）
+- [ ] 0-4 iPhone実機でHello Worldにアクセスし、表示確認手順を確立する（手順は下記「実機確認手順」参照。ユーザーによる実機操作が必要）
 
 ## Phase 1: データ準備（GW150914）
 
@@ -92,3 +92,12 @@ Plan.mdの内容を、小さく検証可能なステップに分解し、順番�
 - 各ステップは「動くものが増える」単位で区切り、都度動作確認する
 - 複数イベント対応や凝った演出はPlan.mdの設計方針（不要な機能や華美な装飾を追加しない）に反するため後回し、もしくは実施しない
 - 技術選定に迷ったら「ブラウザのみで完結」「iPhoneで動く」「教育効果」を優先基準にする
+
+## 実機確認手順
+
+mainにpushするとGitHub Actionsが自動でビルド・デプロイする。実機確認は以下の手順で行う。
+
+1. （初回のみ）GitHubリポジトリの Settings → Pages → Build and deployment → Source を「GitHub Actions」に設定する
+2. リポジトリの Actions タブでワークフロー「Deploy to GitHub Pages」が緑チェックで完了していることを確認する
+3. iPhoneのSafariで `https://kisakutanaka.github.io/GWPlayer/` を開く
+4. 表示・操作を確認する（Step.md中の「実機確認」項目ではここで確認したい内容を都度追記していく）
