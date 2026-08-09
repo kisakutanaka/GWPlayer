@@ -1,0 +1,11 @@
+{
+  "event": "GW150914",
+  "detector": "H1",
+  "sampleRate": 4096,
+  "gpsStart": 1126259447,
+  "duration": 32,
+  "sampleCount": 131072,
+  "strainFile": "h1-raw.f32",
+  "strainFormat": "float32le",
+  "source": "https://gwosc.org/eventapi/json/GWTC-1-confident/GW150914/v3/H-H1_GWOSC_4KHZ_R1-1126259447-32.txt.gz"
+}
