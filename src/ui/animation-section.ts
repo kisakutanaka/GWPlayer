@@ -22,8 +22,7 @@ export function setupAnimationSection(
   const { orbitCanvas, playPauseButton, seekInput, timeLabel } = elements
 
   const render = (t: number) => {
-    const state = model.stateAt(t)
-    renderOrbit(orbitCanvas, state, model.maxRadius, model.m1, model.m2, colors)
+    renderOrbit(orbitCanvas, model, t, colors)
   }
 
   const player = setupPlaybackControls(
