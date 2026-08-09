@@ -96,6 +96,7 @@ app.innerHTML = `
     <div class="orbit-wrap">
       <canvas id="orbit-canvas"></canvas>
     </div>
+    <p id="orbit-rotation-rate" class="rotation-rate">回転数: - 回/秒</p>
     <div id="orbit-player" class="player">
       <button id="orbit-play-pause" type="button">再生</button>
       <input id="orbit-seek" type="range" min="0" max="1" step="0.001" value="0" />
@@ -161,6 +162,9 @@ const ORBIT_COLORS = { body1: '#3a5ba0', body2: '#a0653a', merged: '#6b3a8a' }
 function getAnimationSectionElements(): AnimationSectionElements {
   return {
     orbitCanvas: document.querySelector<HTMLCanvasElement>('#orbit-canvas')!,
+    rotationRateLabel: document.querySelector<HTMLParagraphElement>(
+      '#orbit-rotation-rate',
+    )!,
     playPauseButton: document.querySelector<HTMLButtonElement>(
       '#orbit-play-pause',
     )!,

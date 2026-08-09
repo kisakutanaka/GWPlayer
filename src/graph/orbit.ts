@@ -1,4 +1,4 @@
-import type { InspiralModel } from '../physics/inspiral'
+import type { InspiralModel, OrbitState } from '../physics/inspiral'
 
 export interface OrbitColors {
   body1: string
@@ -32,7 +32,7 @@ export function renderOrbit(
   model: InspiralModel,
   t: number,
   colors: OrbitColors,
-): void {
+): OrbitState {
   const dpr = window.devicePixelRatio || 1
   const width = canvas.clientWidth
   const height = canvas.clientHeight
@@ -58,7 +58,7 @@ export function renderOrbit(
     ctx.beginPath()
     ctx.arc(cx, cy, bodyRadiusPx(M, avgMass), 0, Math.PI * 2)
     ctx.fill()
-    return
+    return state
   }
 
   // theta(t)は合体まで単調増加なので、二分探索で
@@ -138,4 +138,5 @@ export function renderOrbit(
     ctx.fill()
   }
   ctx.globalAlpha = 1
+  return state
 }

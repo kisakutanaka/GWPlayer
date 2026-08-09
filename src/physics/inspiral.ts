@@ -13,6 +13,7 @@ const MERGE_TRANSITION = 0.1 // 秒
 export interface OrbitState {
   r: number // メートル
   theta: number // ラジアン（累積位相）
+  omega: number // ラジアン/秒（軌道角速度）
   merged: boolean
 }
 
@@ -49,6 +50,7 @@ export function createInspiralModel(
   const times = new Float64Array(resolution + 1)
   const radii = new Float64Array(resolution + 1)
   const thetas = new Float64Array(resolution + 1)
+  const omegas = new Float64Array(resolution + 1)
   const mergedFlags = new Uint8Array(resolution + 1)
 
   let theta = 0
@@ -81,6 +83,7 @@ export function createInspiralModel(
     times[i] = t
     radii[i] = r
     thetas[i] = theta
+    omegas[i] = omega
     mergedFlags[i] = merged ? 1 : 0
     prevT = t
   }
@@ -94,6 +97,7 @@ export function createInspiralModel(
     return {
       r: radii[i0] + (radii[i1] - radii[i0]) * frac,
       theta: thetas[i0] + (thetas[i1] - thetas[i0]) * frac,
+      omega: omegas[i0] + (omegas[i1] - omegas[i0]) * frac,
       merged: mergedFlags[i1] === 1,
     }
   }
