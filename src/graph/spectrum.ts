@@ -1,11 +1,13 @@
 // 振幅スペクトル密度(ASD = sqrt(PSD))をlog-logで描画する。
 // LIGOのノイズ特性は周波数ごとに桁違いに変化するため、
 // 通常の線形軸ではなくlog-logで見るのが一般的（GWOSCチュートリアルと同様）。
-const MARGIN_LEFT = 48
+const MARGIN_LEFT = 62
 const MARGIN_RIGHT = 16
-const MARGIN_BOTTOM = 16
+const MARGIN_BOTTOM = 30
 const GRID_COLOR = '#8888a055'
 const LABEL_COLOR = '#8888a0'
+const X_AXIS_TITLE = '周波数 (Hz)'
+const Y_AXIS_TITLE = '振幅スペクトル密度 (strain/√Hz)'
 
 export function renderSpectrum(
   canvas: HTMLCanvasElement,
@@ -54,7 +56,7 @@ export function renderSpectrum(
 
   ctx.font = '10px system-ui, sans-serif'
 
-  // y軸: 10のべき乗ごとのグリッド線と目盛りラベル(strain/√Hz)
+  // y軸: 10のべき乗ごとのグリッド線と目盛りラベル
   ctx.strokeStyle = GRID_COLOR
   ctx.fillStyle = LABEL_COLOR
   ctx.lineWidth = 1
@@ -69,7 +71,7 @@ export function renderSpectrum(
     ctx.fillText(`1e${e}`, MARGIN_LEFT - 6, y)
   }
 
-  // x軸: 10のべき乗ごとのグリッド線と目盛りラベル(Hz)
+  // x軸: 10のべき乗ごとのグリッド線と目盛りラベル
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
   for (let e = Math.ceil(logMinF); e <= Math.floor(logMaxF); e++) {
@@ -82,12 +84,19 @@ export function renderSpectrum(
     ctx.fillText(`${f}`, x, plotHeight + 3)
   }
 
-  // 軸の単位（目盛りラベルと衝突しないよう上部の左右端に配置）
-  ctx.textBaseline = 'top'
-  ctx.textAlign = 'left'
-  ctx.fillText('strain/√Hz', MARGIN_LEFT, 0)
-  ctx.textAlign = 'right'
-  ctx.fillText('Hz', width, 0)
+  // 軸タイトル（見た人が何の軸か分かるよう明示する）
+  ctx.font = '9px system-ui, sans-serif'
+  ctx.fillStyle = LABEL_COLOR
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'alphabetic'
+  ctx.fillText(X_AXIS_TITLE, MARGIN_LEFT + plotWidth / 2, height - 1)
+
+  ctx.save()
+  ctx.translate(10, plotHeight / 2)
+  ctx.rotate(-Math.PI / 2)
+  ctx.textAlign = 'center'
+  ctx.fillText(Y_AXIS_TITLE, 0, 0)
+  ctx.restore()
 
   // データ本体
   ctx.strokeStyle = color
