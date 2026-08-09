@@ -96,6 +96,10 @@ app.innerHTML = `
     <div class="orbit-wrap">
       <canvas id="orbit-canvas"></canvas>
     </div>
+    <div class="rotation-graph-wrap">
+      <canvas id="rotation-curve-canvas"></canvas>
+      <canvas id="rotation-playhead-canvas"></canvas>
+    </div>
     <p id="orbit-rotation-rate" class="rotation-rate">回転数: - 回/秒</p>
     <div id="orbit-player" class="player">
       <button id="orbit-play-pause" type="button">再生</button>
@@ -162,6 +166,12 @@ const ORBIT_COLORS = { body1: '#3a5ba0', body2: '#a0653a', merged: '#6b3a8a' }
 function getAnimationSectionElements(): AnimationSectionElements {
   return {
     orbitCanvas: document.querySelector<HTMLCanvasElement>('#orbit-canvas')!,
+    rotationCurveCanvas: document.querySelector<HTMLCanvasElement>(
+      '#rotation-curve-canvas',
+    )!,
+    rotationPlayheadCanvas: document.querySelector<HTMLCanvasElement>(
+      '#rotation-playhead-canvas',
+    )!,
     rotationRateLabel: document.querySelector<HTMLParagraphElement>(
       '#orbit-rotation-rate',
     )!,
@@ -253,6 +263,8 @@ async function main() {
     meta.sampleRate,
     inspiralModel,
     ORBIT_COLORS,
+    ORBIT_COLORS.merged,
+    PLAYHEAD_COLOR,
   )
 
   const spectra = [

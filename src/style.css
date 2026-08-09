@@ -111,6 +111,20 @@ h3 {
   height: 100%;
 }
 
+.rotation-graph-wrap {
+  position: relative;
+  width: 100%;
+  height: 130px;
+  margin-top: 12px;
+}
+
+.rotation-graph-wrap canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .rotation-rate {
   text-align: center;
   font-size: 14px;
