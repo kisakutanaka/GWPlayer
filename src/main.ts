@@ -52,7 +52,7 @@ const PLAYHEAD_COLOR = '#e63946'
 const WAVEFORM_COLOR = '#3a5ba0'
 const SPECTRUM_COLOR = '#3a5ba0'
 const SPECTRUM_MIN_FREQ = 10 // Hz。これより低い帯域は地面振動などのノイズが支配的
-const SPECTRUM_MAX_FREQ = 1024 // Hz (Nyquist未満の見やすい範囲)
+const SPECTRUM_MAX_FREQ = 2000 // Hz (Nyquist=2048未満の見やすい範囲)
 
 loadGw150914()
   .then(({ meta, strain }) => {
