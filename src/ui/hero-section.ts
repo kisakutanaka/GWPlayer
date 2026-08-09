@@ -11,7 +11,9 @@ import type { InspiralModel } from '../physics/inspiral'
 import { setupPlaybackControls } from './playback-controls'
 
 export interface HeroSectionElements {
+  orbitWrap: HTMLDivElement
   orbitCanvas: HTMLCanvasElement
+  rotationGraphWrap: HTMLDivElement
   rotationCurveCanvas: HTMLCanvasElement
   rotationPlayheadCanvas: HTMLCanvasElement
   rotationRateLabel: HTMLParagraphElement
@@ -22,9 +24,16 @@ export interface HeroSectionElements {
   timeLabel: HTMLSpanElement
 }
 
+export interface HeroSectionHandle {
+  player: StrainPlayer
+  dispose: () => void
+}
+
 // アニメーション・チャープ曲線・波形を1つの共有タイムラインで同期させる
 // ヒーローセクション。バンドパス後のデータを使い、この1つの再生ボタンで
 // 3つの表示すべてが連動する。
+// modelがnull(質量パラメータが取得できなかったイベント)の場合は
+// アニメーションとチャープ曲線を非表示にし、波形のみ表示する。
 export function setupHeroSection(
   ctx: AudioContext,
   elements: HeroSectionElements,
@@ -32,12 +41,14 @@ export function setupHeroSection(
   sampleRate: number,
   waveformColor: string,
   playheadColor: string,
-  model: InspiralModel,
+  model: InspiralModel | null,
   orbitColors: OrbitColors,
   rotationCurveColor: string,
-): StrainPlayer {
+): HeroSectionHandle {
   const {
+    orbitWrap,
     orbitCanvas,
+    rotationGraphWrap,
     rotationCurveCanvas,
     rotationPlayheadCanvas,
     rotationRateLabel,
@@ -48,23 +59,31 @@ export function setupHeroSection(
     timeLabel,
   } = elements
 
+  orbitWrap.hidden = model === null
+  rotationGraphWrap.hidden = model === null
+  rotationRateLabel.hidden = model === null
+
   renderWaveform(waveformCanvas, strain, waveformColor)
   const duration = strain.length / sampleRate
-  const rotationData = computeRotationCurve(model, duration)
-  renderRotationCurve(rotationCurveCanvas, rotationData, duration, rotationCurveColor)
+  const rotationData = model ? computeRotationCurve(model, duration) : null
+  if (model && rotationData) {
+    renderRotationCurve(rotationCurveCanvas, rotationData, duration, rotationCurveColor)
+  }
 
   const render = (t: number) => {
     const ratio = duration > 0 ? t / duration : 0
     renderPlayhead(playheadCanvas, ratio, playheadColor)
 
-    const state = renderOrbit(orbitCanvas, model, t, orbitColors)
-    rotationRateLabel.textContent = state.merged
-      ? '回転数: 合体後'
-      : `回転数: ${(state.omega / (2 * Math.PI)).toFixed(1)} 回/秒`
-    renderRotationPlayhead(rotationPlayheadCanvas, rotationData, duration, t, playheadColor)
+    if (model && rotationData) {
+      const state = renderOrbit(orbitCanvas, model, t, orbitColors)
+      rotationRateLabel.textContent = state.merged
+        ? '回転数: 合体後'
+        : `回転数: ${(state.omega / (2 * Math.PI)).toFixed(1)} 回/秒`
+      renderRotationPlayhead(rotationPlayheadCanvas, rotationData, duration, t, playheadColor)
+    }
   }
 
-  const player = setupPlaybackControls(
+  const { player, dispose: disposeControls } = setupPlaybackControls(
     ctx,
     { playPauseButton, seekInput, timeLabel },
     strain,
@@ -72,11 +91,20 @@ export function setupHeroSection(
     render,
   )
 
-  window.addEventListener('resize', () => {
+  const onResize = () => {
     renderWaveform(waveformCanvas, strain, waveformColor)
-    renderRotationCurve(rotationCurveCanvas, rotationData, duration, rotationCurveColor)
+    if (model && rotationData) {
+      renderRotationCurve(rotationCurveCanvas, rotationData, duration, rotationCurveColor)
+    }
     render(player.currentTime)
-  })
+  }
+  window.addEventListener('resize', onResize)
 
-  return player
+  return {
+    player,
+    dispose: () => {
+      disposeControls()
+      window.removeEventListener('resize', onResize)
+    },
+  }
 }

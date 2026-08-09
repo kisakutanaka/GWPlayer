@@ -10,6 +10,32 @@ const M_SUN = 1.98892e30 // kg
 // 半径を単純に0まで直線的に絞る（簡略化）。
 const MERGE_TRANSITION = 0.1 // 秒
 
+function chirpMassOf(m1SolarMasses: number, m2SolarMasses: number): number {
+  const m1 = m1SolarMasses * M_SUN
+  const m2 = m2SolarMasses * M_SUN
+  const M = m1 + m2
+  return (m1 * m2) ** (3 / 5) / M ** (1 / 5)
+}
+
+// f_gw(tau): 合体のtau秒前における重力波周波数(=軌道周波数の2倍)
+function chirpFrequencyAtTau(chirpMass: number, tau: number): number {
+  const gmc = (G * chirpMass) / C ** 3
+  return (1 / Math.PI) * (5 / (256 * tau)) ** (3 / 8) * gmc ** (-5 / 8)
+}
+
+// 合体ごく直前(既定でtau=1ms)の重力波周波数のおおまかな見積もり。
+// createInspiralModelのstateAt()はMERGE_TRANSITION以降で周波数を凍結する
+// (アニメーション用の簡略化)ため、実際の信号帯域を知りたい用途
+// (バンドパスの上限を決める等)にはこちらを使う。あくまでリーディング
+// オーダー近似の外挿であり、実際の合体周波数はこれより高くなる。
+export function estimateMergerFrequency(
+  m1SolarMasses: number,
+  m2SolarMasses: number,
+  tau = 0.001,
+): number {
+  return chirpFrequencyAtTau(chirpMassOf(m1SolarMasses, m2SolarMasses), tau)
+}
+
 export interface OrbitState {
   r: number // メートル
   theta: number // ラジアン（累積位相）
@@ -34,12 +60,9 @@ export function createInspiralModel(
   const m1 = m1SolarMasses * M_SUN
   const m2 = m2SolarMasses * M_SUN
   const M = m1 + m2
-  const chirpMass = (m1 * m2) ** (3 / 5) / M ** (1 / 5)
-  const gmc = (G * chirpMass) / C ** 3
+  const chirpMass = chirpMassOf(m1SolarMasses, m2SolarMasses)
 
-  // f_gw(tau): 合体のtau秒前における重力波周波数(=軌道周波数の2倍)
-  const fGw = (tau: number) =>
-    (1 / Math.PI) * (5 / (256 * tau)) ** (3 / 8) * gmc ** (-5 / 8)
+  const fGw = (tau: number) => chirpFrequencyAtTau(chirpMass, tau)
   const omegaAtTau = (tau: number) => Math.PI * fGw(tau)
   // ケプラーの第三法則: r = (G*M / omega_orb^2)^(1/3)
   const radiusAtTau = (tau: number) => (G * M / omegaAtTau(tau) ** 2) ** (1 / 3)

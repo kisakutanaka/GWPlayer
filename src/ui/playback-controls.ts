@@ -6,23 +6,35 @@ export interface PlaybackControlElements {
   timeLabel: HTMLSpanElement
 }
 
+export interface PlaybackControlsHandle {
+  player: StrainPlayer
+  dispose: () => void
+}
+
 const formatTime = (t: number) => t.toFixed(1)
 
 // 再生/一時停止ボタン・シークバー・時間表示の配線をまとめた共通ロジック。
 // 波形のプレイヘッド、軌道アニメーションなど「再生位置に応じて何を描くか」は
 // renderコールバックとして呼び出し側が渡す。
+//
+// ボタン/シークバーのDOM要素はイベント切り替え時にも使い回すため、
+// 呼び出すたびにラベルをリセットし、disposeで今回分のリスナーだけを
+// 確実に取り除けるようにする(取り除かないと、古いイベントの
+// AudioContextを操作するリスナーが残り続けてしまう)。
 export function setupPlaybackControls(
   ctx: AudioContext,
   elements: PlaybackControlElements,
   strain: Float32Array,
   sampleRate: number,
   render: (currentTime: number) => void,
-): StrainPlayer {
+): PlaybackControlsHandle {
   const { playPauseButton, seekInput, timeLabel } = elements
 
   const player = new StrainPlayer(ctx)
   player.load(strain, sampleRate)
 
+  playPauseButton.textContent = '再生'
+  seekInput.value = '0'
   seekInput.max = String(player.duration)
   timeLabel.textContent = `0.0 / ${formatTime(player.duration)} 秒`
   render(0)
@@ -47,7 +59,7 @@ export function setupPlaybackControls(
     render(player.duration)
   }
 
-  playPauseButton.addEventListener('click', () => {
+  const onPlayPauseClick = () => {
     void ctx.resume()
     if (player.isPlaying) {
       player.pause()
@@ -57,20 +69,33 @@ export function setupPlaybackControls(
       playPauseButton.textContent = '一時停止'
       requestAnimationFrame(updateLoop)
     }
-  })
-
-  seekInput.addEventListener('pointerdown', () => {
+  }
+  const onSeekPointerDown = () => {
     draggingSeek = true
-  })
-  seekInput.addEventListener('input', () => {
+  }
+  const onSeekInput = () => {
     const t = Number(seekInput.value)
     timeLabel.textContent = `${formatTime(t)} / ${formatTime(player.duration)} 秒`
     render(t)
-  })
-  seekInput.addEventListener('change', () => {
+  }
+  const onSeekChange = () => {
     player.seek(Number(seekInput.value))
     draggingSeek = false
-  })
+  }
 
-  return player
+  playPauseButton.addEventListener('click', onPlayPauseClick)
+  seekInput.addEventListener('pointerdown', onSeekPointerDown)
+  seekInput.addEventListener('input', onSeekInput)
+  seekInput.addEventListener('change', onSeekChange)
+
+  return {
+    player,
+    dispose: () => {
+      player.pause()
+      playPauseButton.removeEventListener('click', onPlayPauseClick)
+      seekInput.removeEventListener('pointerdown', onSeekPointerDown)
+      seekInput.removeEventListener('input', onSeekInput)
+      seekInput.removeEventListener('change', onSeekChange)
+    },
+  }
 }

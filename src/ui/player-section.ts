@@ -10,8 +10,14 @@ export interface PlayerSectionElements {
   timeLabel: HTMLSpanElement
 }
 
+export interface PlayerSectionHandle {
+  player: StrainPlayer
+  dispose: () => void
+}
+
 // 波形描画＋再生/一時停止＋シークバーをまとめたセットアップ関数。
 // 無加工/ホワイトニング後/バンドパス後で同じUIパターンを繰り返すため共通化する。
+// イベント切り替え時に呼び直せるよう、resizeリスナーを解除するdisposeを返す。
 export function setupPlayerSection(
   ctx: AudioContext,
   elements: PlayerSectionElements,
@@ -19,7 +25,7 @@ export function setupPlayerSection(
   sampleRate: number,
   waveformColor: string,
   playheadColor: string,
-): StrainPlayer {
+): PlayerSectionHandle {
   const { waveformCanvas, playheadCanvas, playPauseButton, seekInput, timeLabel } =
     elements
 
@@ -31,7 +37,7 @@ export function setupPlayerSection(
     renderPlayhead(playheadCanvas, ratio, playheadColor)
   }
 
-  const player = setupPlaybackControls(
+  const { player, dispose: disposeControls } = setupPlaybackControls(
     ctx,
     { playPauseButton, seekInput, timeLabel },
     strain,
@@ -39,10 +45,17 @@ export function setupPlayerSection(
     render,
   )
 
-  window.addEventListener('resize', () => {
+  const onResize = () => {
     renderWaveform(waveformCanvas, strain, waveformColor)
     render(player.currentTime)
-  })
+  }
+  window.addEventListener('resize', onResize)
 
-  return player
+  return {
+    player,
+    dispose: () => {
+      disposeControls()
+      window.removeEventListener('resize', onResize)
+    },
+  }
 }
