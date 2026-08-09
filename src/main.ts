@@ -30,6 +30,7 @@ app.innerHTML = `
       「ホワイトニング」では、この山を平らにならすことでノイズの影響を
       抑え、重力波の信号を見つけやすくします。
     </p>
+    <h3>無加工データのPSD</h3>
     <div class="graph-wrap">
       <canvas id="spectrum-canvas"></canvas>
     </div>
@@ -50,6 +51,10 @@ app.innerHTML = `
       <button id="whiten-play-pause" type="button">再生</button>
       <input id="whiten-seek" type="range" min="0" max="1" step="0.001" value="0" />
       <span id="whiten-time">0.0 / 0.0 秒</span>
+    </div>
+    <h3>ホワイトニング後のPSD</h3>
+    <div class="graph-wrap">
+      <canvas id="whiten-spectrum-canvas"></canvas>
     </div>
   </div>
 `
@@ -78,11 +83,15 @@ const spectrumSection = document.querySelector<HTMLDivElement>('#spectrum-sectio
 const spectrumCanvas =
   document.querySelector<HTMLCanvasElement>('#spectrum-canvas')!
 const whitenSection = document.querySelector<HTMLDivElement>('#whiten-section')!
+const whitenSpectrumCanvas = document.querySelector<HTMLCanvasElement>(
+  '#whiten-spectrum-canvas',
+)!
 
 const WAVEFORM_COLOR = '#3a5ba0'
 const WHITEN_WAVEFORM_COLOR = '#3a8a5b'
 const PLAYHEAD_COLOR = '#e63946'
 const SPECTRUM_COLOR = '#3a5ba0'
+const WHITEN_SPECTRUM_COLOR = '#3a8a5b'
 const SPECTRUM_MIN_FREQ = 10 // Hz。これより低い帯域は地面振動などのノイズが支配的
 const SPECTRUM_MAX_FREQ = 2000 // Hz (Nyquist=2048未満の見やすい範囲)
 
@@ -109,12 +118,6 @@ loadGw150914()
       minFreq: SPECTRUM_MIN_FREQ,
       maxFreq: SPECTRUM_MAX_FREQ,
     })
-    window.addEventListener('resize', () => {
-      renderSpectrum(spectrumCanvas, frequencies, psd, SPECTRUM_COLOR, {
-        minFreq: SPECTRUM_MIN_FREQ,
-        maxFreq: SPECTRUM_MAX_FREQ,
-      })
-    })
 
     const whitened = whiten(strain, meta.sampleRate)
     whitenSection.hidden = false
@@ -126,6 +129,29 @@ loadGw150914()
       WHITEN_WAVEFORM_COLOR,
       PLAYHEAD_COLOR,
     )
+
+    const whitenSpectrum = computePsdWelch(whitened, meta.sampleRate)
+    renderSpectrum(
+      whitenSpectrumCanvas,
+      whitenSpectrum.frequencies,
+      whitenSpectrum.psd,
+      WHITEN_SPECTRUM_COLOR,
+      { minFreq: SPECTRUM_MIN_FREQ, maxFreq: SPECTRUM_MAX_FREQ },
+    )
+
+    window.addEventListener('resize', () => {
+      renderSpectrum(spectrumCanvas, frequencies, psd, SPECTRUM_COLOR, {
+        minFreq: SPECTRUM_MIN_FREQ,
+        maxFreq: SPECTRUM_MAX_FREQ,
+      })
+      renderSpectrum(
+        whitenSpectrumCanvas,
+        whitenSpectrum.frequencies,
+        whitenSpectrum.psd,
+        WHITEN_SPECTRUM_COLOR,
+        { minFreq: SPECTRUM_MIN_FREQ, maxFreq: SPECTRUM_MAX_FREQ },
+      )
+    })
   })
   .catch((err: unknown) => {
     status.textContent = 'データの読み込みに失敗しました。'
