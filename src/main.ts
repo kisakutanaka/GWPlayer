@@ -7,14 +7,52 @@ import { renderSpectrum } from './graph/spectrum'
 import { setupPlayerSection } from './ui/player-section'
 import type { PlayerSectionElements } from './ui/player-section'
 import { createInspiralModel } from './physics/inspiral'
-import { setupAnimationSection } from './ui/animation-section'
-import type { AnimationSectionElements } from './ui/animation-section'
+import { setupHeroSection } from './ui/hero-section'
+import type { HeroSectionElements } from './ui/hero-section'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 app.innerHTML = `
   <h1>重力波プレイヤー</h1>
   <p id="status">GW150914のデータを読み込み中...</p>
 
+  <div id="hero-section" hidden>
+    <h2>GW150914を見る・聴く</h2>
+    <p class="explain">
+      GW150914は、太陽の約36倍と29倍の質量を持つ2つのブラックホールが
+      合体したときに発生した重力波です。合体の様子・周波数の変化(チャープ)・
+      音を、バンドパス後のデータで一緒に確認してみましょう。
+    </p>
+    <div class="orbit-wrap">
+      <canvas id="hero-orbit-canvas"></canvas>
+    </div>
+    <div class="rotation-graph-wrap">
+      <canvas id="hero-rotation-curve-canvas"></canvas>
+      <canvas id="hero-rotation-playhead-canvas"></canvas>
+    </div>
+    <p id="hero-rotation-rate" class="rotation-rate">回転数: - 回/秒</p>
+    <div class="waveform-wrap" id="hero-waveform-wrap">
+      <canvas id="hero-waveform-canvas"></canvas>
+      <canvas id="hero-playhead-canvas"></canvas>
+    </div>
+    <div id="hero-player" class="player">
+      <button id="hero-play-pause" type="button">再生</button>
+      <input id="hero-seek" type="range" min="0" max="1" step="0.001" value="0" />
+      <span id="hero-time">0.0 / 0.0 秒</span>
+    </div>
+  </div>
+
+  <h2>重力波信号を取り出す4つのステップ</h2>
+  <p class="explain">
+    ここからは、無加工の観測データから重力波の「チャープ音」を取り出す
+    手順を、実際のデータを見聴きしながら順番に確認していきます。
+  </p>
+
+  <h3>1. 無加工データ</h3>
+  <p class="explain">
+    GW150914をとらえた観測データそのものです。物理的な振幅のままでは
+    小さすぎて聞こえないため、音量だけを調整しています(周波数などの
+    加工はしていません)。
+  </p>
   <div class="waveform-wrap" id="raw-waveform-wrap" hidden>
     <canvas id="raw-waveform-canvas"></canvas>
     <canvas id="raw-playhead-canvas"></canvas>
@@ -26,7 +64,7 @@ app.innerHTML = `
   </div>
 
   <div id="spectrum-section" hidden>
-    <h2>周波数成分（PSD）</h2>
+    <h3>2. 周波数成分（PSD）</h3>
     <p class="explain">
       PSD（パワースペクトル密度）は、信号にどの周波数がどれくらい強く
       含まれているかを表すグラフです。山になっている部分は検出器自身の
@@ -34,14 +72,14 @@ app.innerHTML = `
       「ホワイトニング」では、この山を平らにならすことでノイズの影響を
       抑え、重力波の信号を見つけやすくします。
     </p>
-    <h3>無加工データのPSD</h3>
+    <h4>無加工データのPSD</h4>
     <div class="graph-wrap">
       <canvas id="spectrum-canvas"></canvas>
     </div>
   </div>
 
   <div id="whiten-section" hidden>
-    <h2>ホワイトニング後の音声</h2>
+    <h3>3. ホワイトニング</h3>
     <p class="explain">
       ホワイトニングは、上のPSDグラフで見えていた「山」を打ち消すように
       各周波数の強さを均一にする処理です。検出器特有のノイズが減り、
@@ -56,19 +94,20 @@ app.innerHTML = `
       <input id="whiten-seek" type="range" min="0" max="1" step="0.001" value="0" />
       <span id="whiten-time">0.0 / 0.0 秒</span>
     </div>
-    <h3>ホワイトニング後のPSD</h3>
+    <h4>ホワイトニング後のPSD</h4>
     <div class="graph-wrap">
       <canvas id="whiten-spectrum-canvas"></canvas>
     </div>
   </div>
 
   <div id="bandpass-section" hidden>
-    <h2>バンドパス後の音声</h2>
+    <h3>4. バンドパス</h3>
     <p class="explain">
       バンドパスは、指定した周波数帯だけを通すフィルタです。GW150914の
       ようなブラックホール合体の重力波信号は主に35〜350Hzの帯域にあるため、
       それ以外の周波数を取り除くことで、重力波の「チャープ音」がさらに
-      はっきり聞こえるようになります。
+      はっきり聞こえるようになります。この結果が、一番上のアニメーションで
+      流れている音です。
     </p>
     <div class="waveform-wrap" id="bandpass-waveform-wrap">
       <canvas id="bandpass-waveform-canvas"></canvas>
@@ -79,32 +118,9 @@ app.innerHTML = `
       <input id="bandpass-seek" type="range" min="0" max="1" step="0.001" value="0" />
       <span id="bandpass-time">0.0 / 0.0 秒</span>
     </div>
-    <h3>バンドパス後のPSD</h3>
+    <h4>バンドパス後のPSD</h4>
     <div class="graph-wrap">
       <canvas id="bandpass-spectrum-canvas"></canvas>
-    </div>
-  </div>
-
-  <div id="animation-section" hidden>
-    <h2>ブラックホール合体のアニメーション</h2>
-    <p class="explain">
-      GW150914は、太陽の約36倍と29倍の質量を持つ2つのブラックホールが
-      合体したときに発生した重力波です。バンドパス後の音声に合わせて、
-      実際の質量から計算した軌道の様子を表示しています（数値相対論による
-      厳密なシミュレーションではなく、教育目的の簡略化した模式図です）。
-    </p>
-    <div class="orbit-wrap">
-      <canvas id="orbit-canvas"></canvas>
-    </div>
-    <div class="rotation-graph-wrap">
-      <canvas id="rotation-curve-canvas"></canvas>
-      <canvas id="rotation-playhead-canvas"></canvas>
-    </div>
-    <p id="orbit-rotation-rate" class="rotation-rate">回転数: - 回/秒</p>
-    <div id="orbit-player" class="player">
-      <button id="orbit-play-pause" type="button">再生</button>
-      <input id="orbit-seek" type="range" min="0" max="1" step="0.001" value="0" />
-      <span id="orbit-time">0.0 / 0.0 秒</span>
     </div>
   </div>
 `
@@ -127,6 +143,31 @@ function getPlayerSectionElements(prefix: string): PlayerSectionElements {
   }
 }
 
+function getHeroSectionElements(): HeroSectionElements {
+  return {
+    orbitCanvas: document.querySelector<HTMLCanvasElement>('#hero-orbit-canvas')!,
+    rotationCurveCanvas: document.querySelector<HTMLCanvasElement>(
+      '#hero-rotation-curve-canvas',
+    )!,
+    rotationPlayheadCanvas: document.querySelector<HTMLCanvasElement>(
+      '#hero-rotation-playhead-canvas',
+    )!,
+    rotationRateLabel: document.querySelector<HTMLParagraphElement>(
+      '#hero-rotation-rate',
+    )!,
+    waveformCanvas: document.querySelector<HTMLCanvasElement>(
+      '#hero-waveform-canvas',
+    )!,
+    playheadCanvas: document.querySelector<HTMLCanvasElement>(
+      '#hero-playhead-canvas',
+    )!,
+    playPauseButton: document.querySelector<HTMLButtonElement>('#hero-play-pause')!,
+    seekInput: document.querySelector<HTMLInputElement>('#hero-seek')!,
+    timeLabel: document.querySelector<HTMLSpanElement>('#hero-time')!,
+  }
+}
+
+const heroSection = document.querySelector<HTMLDivElement>('#hero-section')!
 const rawWaveformWrap = document.querySelector<HTMLDivElement>('#raw-waveform-wrap')!
 const rawPlayerEl = document.querySelector<HTMLDivElement>('#raw-player')!
 const spectrumSection = document.querySelector<HTMLDivElement>('#spectrum-section')!
@@ -141,8 +182,6 @@ const bandpassSection =
 const bandpassSpectrumCanvas = document.querySelector<HTMLCanvasElement>(
   '#bandpass-spectrum-canvas',
 )!
-const animationSection =
-  document.querySelector<HTMLDivElement>('#animation-section')!
 
 const WAVEFORM_COLOR = '#3a5ba0'
 const WHITEN_WAVEFORM_COLOR = '#3a8a5b'
@@ -162,26 +201,6 @@ const GW150914_M1_SOLAR_MASSES = 36
 const GW150914_M2_SOLAR_MASSES = 29
 const GW150914_MERGER_GPS = 1126259462.423
 const ORBIT_COLORS = { body1: '#3a5ba0', body2: '#a0653a', merged: '#6b3a8a' }
-
-function getAnimationSectionElements(): AnimationSectionElements {
-  return {
-    orbitCanvas: document.querySelector<HTMLCanvasElement>('#orbit-canvas')!,
-    rotationCurveCanvas: document.querySelector<HTMLCanvasElement>(
-      '#rotation-curve-canvas',
-    )!,
-    rotationPlayheadCanvas: document.querySelector<HTMLCanvasElement>(
-      '#rotation-playhead-canvas',
-    )!,
-    rotationRateLabel: document.querySelector<HTMLParagraphElement>(
-      '#orbit-rotation-rate',
-    )!,
-    playPauseButton: document.querySelector<HTMLButtonElement>(
-      '#orbit-play-pause',
-    )!,
-    seekInput: document.querySelector<HTMLInputElement>('#orbit-seek')!,
-    timeLabel: document.querySelector<HTMLSpanElement>('#orbit-time')!,
-  }
-}
 
 function drawAllSpectra(
   spectra: {
@@ -255,16 +274,17 @@ async function main() {
     mergerTime,
     meta.duration,
   )
-  animationSection.hidden = false
-  setupAnimationSection(
+  heroSection.hidden = false
+  setupHeroSection(
     ctx,
-    getAnimationSectionElements(),
+    getHeroSectionElements(),
     bandpassed,
     meta.sampleRate,
+    BANDPASS_WAVEFORM_COLOR,
+    PLAYHEAD_COLOR,
     inspiralModel,
     ORBIT_COLORS,
     ORBIT_COLORS.merged,
-    PLAYHEAD_COLOR,
   )
 
   const spectra = [
